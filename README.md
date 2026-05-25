@@ -656,6 +656,16 @@ php artisan test
 
 Tests are located in the `tests/` directory and use **PHPUnit `^11.5`**.
 
+## 🚀 Deploying on Render
+
+This repository includes a `render.yaml` blueprint and `Dockerfile` for a Docker-based Render web service.
+
+1. Create a new Render Blueprint from this repository.
+2. Set the required secrets when prompted: `APP_URL`, `MONGODB_URI`, `MONGODB_DATABASE`, and `SUPER_ADMIN_SECRET_KEY`.
+3. Deploy the `discount-pro` web service.
+
+Render runs the app from the Docker image and executes `php artisan migrate --force` before each deploy.
+
 ---
 
 ## 🔒 Security Highlights
