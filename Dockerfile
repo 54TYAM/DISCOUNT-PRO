@@ -1,10 +1,3 @@
-FROM composer:2 AS vendor
-WORKDIR /app
-
-COPY composer.json composer.lock ./
-COPY . .
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-
 FROM node:20-bookworm-slim AS assets
 WORKDIR /app
 
@@ -42,9 +35,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 COPY . .
+
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
