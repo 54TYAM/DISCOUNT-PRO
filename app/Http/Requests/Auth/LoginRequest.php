@@ -48,7 +48,7 @@ class LoginRequest extends FormRequest
                 ]);
             }
             if (! hash_equals((string) $expected, (string) $this->input('secret_key', ''))) {
-                RateLimiter::hit($this->throttleKey());
+                $this->hitLoginRateLimiter();
                 throw ValidationException::withMessages([
                     'secret_key' => 'Incorrect super-admin secret key.',
                 ]);
@@ -57,7 +57,7 @@ class LoginRequest extends FormRequest
 
         // ── Email + password ────────────────────────────────────────────────
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+            $this->hitLoginRateLimiter();
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);
@@ -71,7 +71,7 @@ class LoginRequest extends FormRequest
             Auth::logout();
             $this->session()->invalidate();
             $this->session()->regenerateToken();
-            RateLimiter::hit($this->throttleKey());
+            $this->hitLoginRateLimiter();
             throw ValidationException::withMessages([
                 'email' => 'Your account is awaiting super-admin approval. You will be able to sign in once it is approved.',
             ]);
@@ -88,7 +88,7 @@ class LoginRequest extends FormRequest
             Auth::logout();
             $this->session()->invalidate();
             $this->session()->regenerateToken();
-            RateLimiter::hit($this->throttleKey());
+            $this->hitLoginRateLimiter();
 
             $label = ['customer' => 'Customer', 'manager' => 'Store Manager', 'admin' => 'Super Admin'][$actualRole];
             throw ValidationException::withMessages([
@@ -96,24 +96,48 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        RateLimiter::clear($this->throttleKey());
+        $this->clearLoginRateLimiter();
     }
 
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        try {
+            if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+                return;
+            }
+
+            event(new Lockout($this));
+            $seconds = RateLimiter::availableIn($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => trans('auth.throttle', [
+                    'seconds' => $seconds,
+                    'minutes' => ceil($seconds / 60),
+                ]),
+            ]);
+        } catch (\Throwable) {
+            // If the backing cache store is unavailable, fail open so logins do
+            // not turn into production 500s.
             return;
         }
+    }
 
-        event(new Lockout($this));
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+    private function hitLoginRateLimiter(): void
+    {
+        try {
+            RateLimiter::hit($this->throttleKey());
+        } catch (\Throwable) {
+            // Ignore cache backend failures during login throttling.
+        }
+    }
 
-        throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
-        ]);
+    private function clearLoginRateLimiter(): void
+    {
+        try {
+            RateLimiter::clear($this->throttleKey());
+        } catch (\Throwable) {
+            // Ignore cache backend failures during login throttling.
+        }
     }
 
     public function throttleKey(): string
