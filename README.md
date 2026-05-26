@@ -607,6 +607,15 @@ DB_CONNECTION=sqlite
 
 # ── MongoDB (required for full functionality) ──────────────────────────
 DB_CONNECTION=mongodb
+# For local development with Compass or a local server, a typical URI looks like:
+# MONGODB_URI=mongodb://127.0.0.1:27017
+# MONGODB_DATABASE=discount_pro
+#
+# For production (Render) use MongoDB Atlas. Example Atlas (SRV) URI:
+# mongodb+srv://<username>:<password>@cluster0.abcd.mongodb.net/discount_pro?retryWrites=true&w=majority
+# Set the following environment variables on your host (Render):
+#   - MONGODB_URI  (full Atlas connection string, replace <password>)
+#   - MONGODB_DATABASE (database name, e.g. discount_pro)
 MONGODB_URI=mongodb://127.0.0.1:27017
 MONGODB_DATABASE=discount_pro
 
